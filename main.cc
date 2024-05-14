@@ -21,7 +21,7 @@ struct Child
 //===== Functions =====
 int createChild(unsigned indexChild, char* dirChild, TYPE_CHILD childType);
 void onExit();
-void stopChildAll();
+void stopChildAll(TYPE_CHILD type);
 
 //=== Global Variables ===
 TAILQ_HEAD(HeadOfCollection, Child)
@@ -43,7 +43,7 @@ int main(int argc, char* argv[], char* envp[])
 		printf("main OK\n");
 		return 1;
 	}
-	printf("Type: + - l k s g s<num> g<num> p<num>\n");
+	printf("Type: p c k q\n");
 
 	//=== read user input ===
 	int ch;
@@ -92,8 +92,23 @@ int main(int argc, char* argv[], char* envp[])
 			{
 				return 0;
 			}
+			//=== parent process ===
+			struct Child* pChild = (Child*)malloc(sizeof(struct Child));
+
+			pChild->index = indexConsumer;
+			pChild->pid = pidChild;
+
+			TAILQ_INSERT_TAIL(&colConsumer, pChild, allChildren);
+			printf("Start Consumer: %d\n", indexConsumer);
 			indexConsumer++;
 
+			break;
+		}
+		case 'k':								// terminate all Child processes
+		{
+			onExit();							// clear resources
+			TAILQ_INIT(&colProducer);           /* Initialize the queue. */
+			TAILQ_INIT(&colConsumer);           /* Initialize the queue. */
 			break;
 		}
 		case 'q':
@@ -113,7 +128,8 @@ int main(int argc, char* argv[], char* envp[])
 // clear resources
 void onExit()
 {
-	stopChildAll();						// terminate all Child processes
+	stopChildAll(TC_PRODUCER);			// terminate all Child processes
+	stopChildAll(TC_CONSUMER);			// terminate all Child processes
 }
 
 void stopChild(pid_t pidChild)
@@ -121,16 +137,31 @@ void stopChild(pid_t pidChild)
 	kill(pidChild, SIGKILL);
 }
 
-void stopChildAll()
+void stopChildAll(TYPE_CHILD type)
 {
-	for (struct Child* pChild = colProducer.tqh_first; pChild != NULL; )
+	struct HeadOfCollection* pColl = NULL;
+	const char* message;
+
+	if (type == TC_PRODUCER)
+	{
+		pColl = &colProducer;
+		message = "Terminate Producer: %d\n";
+	}
+	else
+	{
+		pColl = &colConsumer;
+		message = "Terminate Consumer: %d\n";
+	}
+
+	// delete from the collection
+	for (struct Child* pChild = pColl->tqh_first; pChild != NULL; )
 	{
 		struct Child* pChildNext;
 
 		pChildNext = pChild->allChildren.tqe_next;
 
-		printf("Terminate Producer: %d\n", pChild->index);
-		stopChild(pChild->pid);				// send signal to Child
+		printf(message, pChild->index);
+		stopChild(pChild->pid);						// send signal to Child
 		free(pChild);
 
 		pChild = pChildNext;
