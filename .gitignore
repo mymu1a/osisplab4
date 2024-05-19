@@ -1,5 +1,6 @@
 *.out
-child
+consumer
+produser
 parent
 
 *.diff

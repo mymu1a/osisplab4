@@ -1,13 +1,21 @@
 #include "global.h"
 
+#include "circleQueue.h"
+
 #include <ctype.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 
-#include <sys/queue.h>
+#include <sys/mman.h>
+#include <sys/stat.h>	/* For mode constants */
+#include <fcntl.h>		/* For O_* constants */
+
+#include <cassert>
+
+
+#define SIZE_MESSAGE_QUEUE 5
 
 //===== `Child` Struct =====
 struct Child
@@ -18,17 +26,17 @@ struct Child
 	TAILQ_ENTRY(Child) allChildren;         /* Tail queue. */
 };
 
-//===== Functions =====
-int createChild(unsigned indexChild, char* dirChild, TYPE_CHILD childType);
-void onExit();
-void stopChildAll(TYPE_CHILD type);
-
 //=== Global Variables ===
 TAILQ_HEAD(HeadOfCollection, Child)
 	colProducer = TAILQ_HEAD_INITIALIZER(colProducer),
 	colConsumer = TAILQ_HEAD_INITIALIZER(colConsumer);
 
 
+//===== Functions =====
+int createChild(unsigned indexChild, char* dirChild, TYPE_CHILD childType);
+void createColMessage();			// initialize circled collection for Messages
+void onExit();
+void stopChildAll(TYPE_CHILD type);
 
 int main(int argc, char* argv[], char* envp[])
 {
@@ -50,8 +58,10 @@ int main(int argc, char* argv[], char* envp[])
 	unsigned indexProduser = 0;
 	unsigned indexConsumer = 0;
 
-	TAILQ_INIT(&colProducer);                      /* Initialize the queue. */
-	TAILQ_INIT(&colConsumer);                      /* Initialize the queue. */
+	TAILQ_INIT(&colProducer);                   /* Initialize the queue. */
+	TAILQ_INIT(&colConsumer);                   /* Initialize the queue. */
+
+	createColMessage();							// initialize circled collection for Messages
 
 	while ((ch = getchar()) != EOF)
 	{
@@ -167,3 +177,47 @@ void stopChildAll(TYPE_CHILD type)
 		pChild = pChildNext;
 	}
 }
+
+// initialize circled collection for Messages
+void createColMessage()
+{
+	off_t		sizeFile;
+	const char* nameFile = NAME_FILE_CIRCLE_QUEUE;
+	int			fd;
+
+	sizeFile = sizeof(CircleHead) + sizeof(CircleElement) * SIZE_MESSAGE_QUEUE;
+	fd = shm_open(nameFile, O_CREAT | O_RDWR | O_TRUNC, 0644);
+
+	ftruncate(fd, sizeFile);
+	fprintf(stderr, "Shared Mem Descriptor: fd=%d\n", fd);
+
+	assert(fd > 0);
+
+	u_char* pHeapMemory = (u_char*)mmap(NULL, sizeFile, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+	fprintf(stderr, "Shared Memory Address: %p [0..%lu]\n", pHeapMemory, sizeFile - 1);
+	fprintf(stderr, "Shared Memory Path: /dev/shm/%s\n", nameFile);
+	printf("sizeof(CircleHead)=0x%x\n", sizeof(CircleHead));
+	printf("sizeof(CircleElement)=0x%x\n", sizeof(CircleElement));
+
+	CircleHead* pHead;
+	CircleElement* pBuffer;
+
+	pHead = (CircleHead*)pHeapMemory;
+	pBuffer = (CircleElement*)(pHeapMemory + sizeof(CircleHead));
+	printf("pBuffer=%p\n", pBuffer);
+
+	circleQueueInit(pHead, SIZE_MESSAGE_QUEUE, pBuffer);
+
+	///// begin
+	CircleElement* pElement;
+	int index = 12;
+
+	while (circleQueueNextWrite(pHead, &pElement) == true)
+	{
+		printf("next Element\n");
+		pElement->index = index++;
+	}
+	///// end
+}
+ 

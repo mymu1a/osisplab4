@@ -1,9 +1,9 @@
 build: parent produser consumer
 
-parent: main.cc parent.cc
+parent: main.cc parent.cc circleQueue.cc
 	gcc -o parent $^
 
-produser: produser.cc
+produser: produser.cc circleQueue.cc
 	gcc -o produser $^
 
 consumer: consumer.cc
