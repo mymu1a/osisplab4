@@ -15,7 +15,10 @@
 
 
 struct Message* createMassage();
-void openCircledQueue();
+void closeCircledQueue(u_char* pHeapMemory, off_t& sizeMemory);							// close CircledQueue
+void openCircledQueue(u_char** pHeapMemory, off_t& sizeMemory, CircleHead** pHead);		// read CircledQueue from the shared Memory
+void startNanoSleep(CircleHead* pCircleHead);
+
 
 struct Message
 {
@@ -25,13 +28,62 @@ struct Message
 	void* pData;
 };
 
+
+void startNanoSleep(CircleHead* pCircleHead)
+{
+	struct timespec		time, time2;
+	int					count = 5;
+	int					result;
+
+	time.tv_sec = 1;
+	time.tv_nsec = 0.5 * 1000000000;
+
+	while (count-- > 0)
+	{
+		result = nanosleep(&time, &time2);
+		if (result == 0)
+		{
+			///// begin
+			CircleElement* pElement;
+
+			if (circleQueueNextWrite(pCircleHead, &pElement) == false)
+			{
+				printf("  circleQueue is full --------\n");
+			}
+			else
+			{
+				printf("  next Element\n");
+			}
+			///// end
+		}
+		if (result == -1)
+		{
+			if (errno != 4)
+			{
+				printf("Error in nanosleep():\n");
+				printf("  errno: %d\n", errno);
+				printf("  errno: %s\n", strerror(errno));
+
+				return;
+			}
+		}
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	printf("child process ST\n");
+	u_char*		pHeapMemory;
+	off_t		sizeMemory;
+	CircleHead* pCircleHead;
 
-	openCircledQueue();
+	openCircledQueue(&pHeapMemory, sizeMemory, &pCircleHead);
+
+	startNanoSleep(pCircleHead);
+
 	createMassage();
 
+	closeCircledQueue(pHeapMemory, sizeMemory);
 	printf("child process OK\n\n");
 
 	return 0;
@@ -57,7 +109,9 @@ struct Message* createMassage()
 	return pMessage;
 }
 
-void openCircledQueue()
+int fd;
+// read CircledQueue from the shared Memory
+void openCircledQueue(u_char** pHeapMemory, off_t& sizeMemory, CircleHead** pCircleHead)
 {
 	printf("openCircledQueue ST\n");
 
@@ -65,35 +119,41 @@ void openCircledQueue()
 	struct stat sb;
 
 	const char* nameFile = NAME_FILE_CIRCLE_QUEUE;
-	int     fd = shm_open(nameFile, O_RDWR, 0644);
+
+	fd = shm_open(nameFile, O_RDWR, 0644);
+	fprintf(stderr, "Shared Memory Path: /dev/shm/%s\n", nameFile);
+	fprintf(stderr, "Shared Mem Descriptor: fd=%d\n", fd);
 
 	fstat(fd, &sb);
 	off_t sizeFile = sb.st_size;
 
-	u_char* pHeapMemory = (u_char*)mmap(NULL, sizeFile, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	*pHeapMemory = (u_char*)mmap(NULL, sizeFile, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	sizeMemory = sizeFile;
+	fprintf(stderr, "sizeFile=%ld\n", sizeFile);
 
-	CircleHead* pHead;
-	CircleElement* pBuffer;
+//	close(fd);
+
+	// init
+	CircleHead*		pHead;
+	CircleElement*	pBuffer;
 
 	pHead = (CircleHead*)pHeapMemory;
 	pBuffer = (CircleElement*)(pHeapMemory + sizeof(CircleHead));
+	pHead->pBuf = pBuffer;			// !!!!!!!!!
 
 
 	printf("countElement: %d\n", pHead->size);
 	printf("indexHead: %d\n", pHead->indexHead);
 
-	///// begin
-	CircleElement* pElement;
-
-	pHead->pBuf = pBuffer;			// !!!!!!!!!
-
-	while (circleQueueNextRead(pHead, &pElement) == true)
-	{
-		printf("  next Element: %d\n", pElement->index);
-	}
-	///// end
-
-
-	close(fd);
+	*pCircleHead = pHead;
 	printf("openCircledQueue OK\n");
+}
+
+void openMutex()
+{
+}
+
+void closeCircledQueue(u_char* pHeapMemory, off_t& sizeMemory)
+{
+	munmap(pHeapMemory, sizeMemory);
 }

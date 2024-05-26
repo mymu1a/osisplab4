@@ -185,11 +185,11 @@ void createColMessage()
 	const char* nameFile = NAME_FILE_CIRCLE_QUEUE;
 	int			fd;
 
-	sizeFile = sizeof(CircleHead) + sizeof(CircleElement) * SIZE_MESSAGE_QUEUE;
 	fd = shm_open(nameFile, O_CREAT | O_RDWR | O_TRUNC, 0644);
-
-	ftruncate(fd, sizeFile);
 	fprintf(stderr, "Shared Mem Descriptor: fd=%d\n", fd);
+
+	sizeFile = sizeof(CircleHead) + sizeof(CircleElement) * SIZE_MESSAGE_QUEUE;
+	ftruncate(fd, sizeFile);
 
 	assert(fd > 0);
 
@@ -210,6 +210,9 @@ void createColMessage()
 	circleQueueInit(pHead, SIZE_MESSAGE_QUEUE, pBuffer);
 
 	///// begin
+	printf("countElement: %d\n", pHead->size);
+	printf("indexHead: %d\n", pHead->indexHead);
+	/*
 	CircleElement* pElement;
 	int index = 12;
 
@@ -218,6 +221,6 @@ void createColMessage()
 		printf("next Element\n");
 		pElement->index = index++;
 	}
+	//*/
 	///// end
 }
- 

@@ -1,5 +1,8 @@
 #include "circleQueue.h"
 
+// initialize Mutex for mutual exclusive access to the Queue
+void initMutex(CircleHead* pHead);
+
 
 void circleQueueInit(CircleHead* pHead, short sizeQueue, CircleElement* pBuffer)
 {
@@ -8,6 +11,8 @@ void circleQueueInit(CircleHead* pHead, short sizeQueue, CircleElement* pBuffer)
 	pHead->size = sizeQueue;
 	pHead->pBuf = pBuffer;
 	pHead->isEmpty = true;
+
+	initMutex(pHead);
 }
 
 bool circleQueueNextWrite(CircleHead* pHead, CircleElement** pElement)
@@ -48,4 +53,14 @@ bool circleQueueNextRead(CircleHead* pHead, CircleElement** pElement)
 	*pElement = &pHead->pBuf[pHead->indexTail];
 
 	return true;
+}
+
+// initialize Mutex for mutual exclusive access to the Queue
+void initMutex(CircleHead* pHead)
+{
+	pthread_mutexattr_t	attribute;
+
+	pthread_mutexattr_init(&attribute);
+	pthread_mutexattr_setpshared(&attribute, PTHREAD_PROCESS_SHARED);
+	pthread_mutex_init(&pHead->mutex, &attribute);
 }

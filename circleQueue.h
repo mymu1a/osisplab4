@@ -1,5 +1,8 @@
 #include "global.h"
 
+#include <pthread.h>
+
+
 struct CircleHead
 {
 	short indexHead;
@@ -7,7 +10,8 @@ struct CircleHead
 	short size;
 	struct CircleElement* pBuf;
 
-	bool isEmpty;		// no info in the buffer
+	bool isEmpty;			// no info in the buffer
+	pthread_mutex_t mutex;	// mutual exclusive access to the Queue
 };
 
 struct CircleElement
