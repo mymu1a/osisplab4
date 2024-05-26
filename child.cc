@@ -12,8 +12,6 @@
 #include <fcntl.h>           /* For O_* constants */
 
 
-
-
 // read CircledQueue from the shared Memory
 int openCircledQueue(u_char** pHeapMemory, off_t& sizeMemory, CircleHead** pCircleHead)
 {
@@ -30,9 +28,10 @@ int openCircledQueue(u_char** pHeapMemory, off_t& sizeMemory, CircleHead** pCirc
 	{
 		return fd;
 	}
+	/*
 	fprintf(stderr, "Shared Memory Path: /dev/shm/%s\n", nameFile);
 	fprintf(stderr, "Shared Mem Descriptor: fd=%d\n", fd);
-
+	//*/
 	fstat(fd, &sb);
 	off_t sizeFile = sb.st_size;
 

@@ -1,23 +1,29 @@
 #include "circleQueue.h"
 
+#include <sys/types.h>
+
+
 // initialize Mutex for mutual exclusive access to the Queue
 void initMutex(CircleHead* pHead);
 
 
-void circleQueueInit(CircleHead* pHead, short sizeQueue, CircleElement* pBuffer)
+void circleQueueInit(CircleHead* pHead, short sizeQueue)
 {
 	pHead->indexHead = -1;
 	pHead->indexTail = -1;
 	pHead->size = sizeQueue;
-	pHead->pBuf = pBuffer;
 	pHead->isEmpty = true;
+	pHead->indexMessage = 0;
 
 	initMutex(pHead);
+
+	pHead->countWrite = 0;
+	pHead->countRead = 0;
 }
 
 void circleQueueLogState(CircleHead* pHead)
 {
-	printf("indexHead=%d\tindexTail=%d\tisEmpty=%s\tsizeQueue=%d", pHead->indexHead, pHead->indexTail, pHead->isEmpty ? "true":"false", pHead->size);
+	printf("Head=%d\tTail=%d\tEmpty=%s\tSize=%d", pHead->indexHead, pHead->indexTail, pHead->isEmpty ? "true":"false", pHead->size);
 }
 
 bool circleQueueNextWrite(CircleHead* pHead, CircleElement** pElement)
@@ -36,7 +42,11 @@ bool circleQueueNextWrite(CircleHead* pHead, CircleElement** pElement)
 	{
 		pHead->indexHead = 0;
 	}
-	*pElement = &pHead->pBuf[pHead->indexHead];
+	CircleElement* pBuffer;				// queue first element
+
+	pBuffer = (CircleElement*)((u_char*)pHead + sizeof(CircleHead));
+
+	*pElement = &pBuffer[pHead->indexHead];
 
 	return true;
 }
@@ -55,7 +65,11 @@ bool circleQueueNextRead(CircleHead* pHead, CircleElement** pElement)
 	{
 		pHead->isEmpty = true;
 	}
-	*pElement = &pHead->pBuf[pHead->indexTail];
+	CircleElement* pBuffer;				// queue first element
+
+	pBuffer = (CircleElement*)((u_char*)pHead + sizeof(CircleHead));
+
+	*pElement = &pBuffer[pHead->indexTail];
 
 	return true;
 }

@@ -6,15 +6,20 @@
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+
+#include <sys/stat.h>        /* For mode constants */
+#include <fcntl.h>           /* For O_* constants */
+
 
 const char* nameProgram = NULL;
 
+void readMessage(unsigned indexMessage, struct Message* pMessage);
 void startNanoSleep(CircleHead* pCircleHead);
 
 
 int main(int argc, char* argv[])
 {
-	printf("Consumer ( child process ) ST\n");
 	nameProgram = argv[0];
 
 	int			fd;
@@ -25,7 +30,6 @@ int main(int argc, char* argv[])
 	if (fd = openCircledQueue(&pHeapMemory, sizeMemory, &pCircleHead) < 0)
 	{
 		printf("Error: cannot open CircledQueue ( %s )\n", nameProgram);
-		printf("Consumer ( child process ) OK\n");
 		return 1;
 	}
 	startNanoSleep(pCircleHead);
@@ -33,7 +37,6 @@ int main(int argc, char* argv[])
 	closeCircledQueue(pHeapMemory, sizeMemory);
 	close(fd);
 	
-	printf("Consumer ( child process ) OK\n");
 	return 0;
 }
 
@@ -61,7 +64,13 @@ void startNanoSleep(CircleHead* pCircleHead)
 			}
 			else
 			{
+				struct Message pMessage;
+
+				readMessage(pElement->indexMessage, &pMessage);
 				printf("  read next Element\t");
+				pCircleHead->countRead++;												// increment `счетчик извлеченных сообщений`
+				printf("  %d ( count read )\t", pCircleHead->countRead);
+
 			}
 			printf(" ( %s )\n", nameProgram);
 
@@ -81,4 +90,34 @@ void startNanoSleep(CircleHead* pCircleHead)
 			}
 		}
 	}
+}
+
+void readMessage(unsigned indexMessage, struct Message* pMessage)
+{
+	int fd;
+	char pathMessage[8 + 6] = { 0, };
+
+	sprintf(pathMessage, "%s/%05d", MESSAGE_FOLDER, indexMessage);
+
+	fd = open(pathMessage, O_RDWR, 0666);
+	if (fd < 0)
+	{
+		printf("Error: cannot open Message file:\n");
+		return;
+	}
+
+
+
+
+	read(fd, (void*)&pMessage->type, 1);
+	read(fd, (void*)&pMessage->hash, 2);
+	read(fd, (void*)&pMessage->size, 1);
+
+	printf("pMessage->type = %d", pMessage->type);
+	printf("pMessage->size = %d", pMessage->size);
+
+	pMessage->pData = (u_char*)malloc(pMessage->size);
+	read(fd, (void*)pMessage->pData, pMessage->size);
+
+	close(fd);
 }

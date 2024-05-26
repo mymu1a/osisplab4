@@ -8,23 +8,20 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include <sys/stat.h>        /* For mode constants */
+#include <fcntl.h>           /* For O_* constants */
+
+
 const char* nameProgram = NULL;
 
-struct Message
-{
-	unsigned char type;
-	short hash;
-	unsigned char size;
-	void* pData;
-};
 
-struct Message* createMassage();
+struct Message* createMessage();
 void startNanoSleep(CircleHead* pCircleHead);
+void writeMessage(unsigned indexMessage, struct Message* pMessage);
 
 
 int main(int argc, char* argv[])
 {
-	printf("Producer ( child process ) ST\n");
 	nameProgram = argv[0];
 
 	int			fd;
@@ -35,17 +32,13 @@ int main(int argc, char* argv[])
 	if(fd = openCircledQueue(&pHeapMemory, sizeMemory, &pCircleHead) < 0)
 	{
 		printf("Error: cannot open CircledQueue ( %s )\n", nameProgram);
-		printf("Producer ( child process ) OK\n");
 		return 1;
 	}
 	startNanoSleep(pCircleHead);
-
-	createMassage();
-
+	
 	closeCircledQueue(pHeapMemory, sizeMemory);
 	close(fd);
 
-	printf("Producer ( child process ) OK\n");
 	return 0;
 }
 
@@ -74,13 +67,25 @@ void startNanoSleep(CircleHead* pCircleHead)
 			}
 			else
 			{
-				printf("  add next Element\t");
+				struct Message* pMessage;
+
+				pCircleHead->indexMessage++;									// name File
+
+				pMessage = createMessage();
+				writeMessage(pCircleHead->indexMessage, pMessage);
+				
+				pCircleHead->countWrite++;												// increment `счетчик добавленных сообщений`
+				printf("  %d ( count write )\t", pCircleHead->countWrite);
+
+				pElement->indexMessage = pCircleHead->indexMessage;
+				
 ///				circleQueueLogState(pCircleHead);
 			}
 			printf(" ( %s )\n", nameProgram);
 
 			usleep(1000000);
 			pthread_mutex_unlock(&pCircleHead->mutex);									// mutex unlock
+			usleep(2);
 			///// end
 		}
 		if (result == -1)
@@ -97,22 +102,65 @@ void startNanoSleep(CircleHead* pCircleHead)
 	}
 }
 
-struct Message* createMassage()
+struct Message* createMessage()
 {
 	int random;
-	struct Message* pMessage = (Message*)malloc(sizeof(struct Message));
+	struct Message* pMessage;
 
+	pMessage = (Message*)malloc(sizeof(struct Message));
 	random = 0;
+
 	while (random == 0)
 	{
 		random = rand();
 		random = random % 257;
 	}
+	pMessage->size = random;
+	pMessage->pData = (u_char*)malloc(pMessage->size);
 
+	printf("pMessage->size=%d\n", pMessage->size);
+
+	u_char byte;
+
+	for (int i = 0; i < pMessage->size; i++)
+	{
+		byte = 0;
+		while (byte == 0)
+		{
+			byte = (u_char)rand();
+		}
+		pMessage->pData[i] = byte;
+		printf("%02x ", byte);
+	}
+	printf("\n");
 	pMessage->hash = 0;
 	pMessage->type = 1;
-	pMessage->size = random;
-	pMessage->pData = malloc(((pMessage->size + 3) / 4) * 4);
 
 	return pMessage;
+}
+
+void writeMessage(unsigned indexMessage, struct Message* pMessage)
+{
+	int fd;
+	char pathMessage[8 + 6] = { 0, };
+
+	sprintf(pathMessage, "%s/%05d", MESSAGE_FOLDER, indexMessage);
+
+	fd = open(pathMessage, O_RDWR | O_CREAT, 0666);
+	if (fd < 0)
+	{
+		printf("Error: cannot open Message file:\n");
+		return;
+	}
+	write(fd, (void*)&pMessage->type, 1);
+	write(fd, (void*)&pMessage->hash, 2);
+	write(fd, (void*)&pMessage->size, 1);
+	write(fd, (void*)pMessage->pData, pMessage->size);
+
+	// extended info
+	const char message[] = { 10, 13 };
+	write(fd, message, 2);
+	write(fd, nameProgram, 11);
+
+	close(fd);
 }

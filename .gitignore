@@ -2,6 +2,7 @@
 consumer
 produser
 parent
+messages/*
 
 *.diff
 *.patch

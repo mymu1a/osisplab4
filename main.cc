@@ -3,6 +3,7 @@
 #include "circleQueue.h"
 
 #include <ctype.h>
+#include <dirent.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,8 +34,9 @@ TAILQ_HEAD(HeadOfCollection, Child)
 
 
 //===== Functions =====
+bool cleanDirectory(const char* path);		// remove all the files and directories within directory
 int createChild(unsigned indexChild, char* dirChild, TYPE_CHILD childType);
-void createColMessage();			// initialize circled collection for Messages
+void createColMessage();					// initialize circled collection for Messages
 void onExit();
 void stopChildAll(TYPE_CHILD type);
 
@@ -51,6 +53,11 @@ int main(int argc, char* argv[], char* envp[])
 	{
 		//		printUsage(argv[0], 1);
 		printf("main OK\n");
+		return 1;
+	}
+	if (cleanDirectory(MESSAGE_FOLDER) == false)
+	{
+		printf("Error: cannot clear `messages` folder\n");
 		return 1;
 	}
 	printf("Type: p c k q\n");
@@ -196,33 +203,37 @@ void createColMessage()
 	assert(fd > 0);
 
 	u_char* pHeapMemory = (u_char*)mmap(NULL, sizeFile, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-
+/*
 	fprintf(stderr, "Shared Memory Address: %p [0..%lu]\n", pHeapMemory, sizeFile - 1);
 	fprintf(stderr, "Shared Memory Path: /dev/shm/%s\n", nameFile);
 	printf("sizeof(CircleHead)=0x%x\n", sizeof(CircleHead));
 	printf("sizeof(CircleElement)=0x%x\n", sizeof(CircleElement));
-
+//*/
 	CircleHead* pHead;
-	CircleElement* pBuffer;
 
 	pHead = (CircleHead*)pHeapMemory;
-	pBuffer = (CircleElement*)(pHeapMemory + sizeof(CircleHead));
-	printf("pBuffer=%p\n", pBuffer);
 
-	circleQueueInit(pHead, SIZE_MESSAGE_QUEUE, pBuffer);
+	circleQueueInit(pHead, SIZE_MESSAGE_QUEUE);
+}
 
-	///// begin
-	printf("countElement: %d\n", pHead->size);
-	printf("indexHead: %d\n", pHead->indexHead);
-	/*
-	CircleElement* pElement;
-	int index = 12;
-
-	while (circleQueueNextWrite(pHead, &pElement) == true)
+// remove all the files and directories within directory
+bool cleanDirectory(const char* path)
+{
+	struct dirent* ent;
+	DIR* dir;
+	char pathFile[255 /*MAXPATHLEN*/] = {0,};
+	
+	dir = opendir(path);
+	if (dir == NULL)
 	{
-		printf("next Element\n");
-		pElement->index = index++;
+		return false;
 	}
-	//*/
-	///// end
+	while ((ent = readdir(dir)) != NULL)
+	{
+		sprintf(pathFile, "%s/%05d", path, ent->d_name);
+		remove(pathFile);
+	}
+	closedir(dir);
+
+	return true;
 }
