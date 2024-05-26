@@ -18,5 +18,4 @@
 enum TYPE_CHILD { TC_PRODUCER, TC_CONSUMER };
 
 
-/// char   	 fname1[MAXPATHLEN]; /* Temporary filename buffer. */
 #endif // __GLOBALS_H__

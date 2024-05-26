@@ -23,3 +23,5 @@ struct CircleElement
 void circleQueueInit(CircleHead* pHead, short sizeQueue, CircleElement* pBuffer);
 bool circleQueueNextRead(CircleHead* pHead, CircleElement** pElement);
 bool circleQueueNextWrite(CircleHead* pHead, CircleElement** pElement);
+
+void circleQueueLogState(CircleHead* pHead);

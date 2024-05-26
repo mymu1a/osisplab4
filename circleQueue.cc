@@ -15,6 +15,11 @@ void circleQueueInit(CircleHead* pHead, short sizeQueue, CircleElement* pBuffer)
 	initMutex(pHead);
 }
 
+void circleQueueLogState(CircleHead* pHead)
+{
+	printf("indexHead=%d\tindexTail=%d\tisEmpty=%s\tsizeQueue=%d", pHead->indexHead, pHead->indexTail, pHead->isEmpty ? "true":"false", pHead->size);
+}
+
 bool circleQueueNextWrite(CircleHead* pHead, CircleElement** pElement)
 {
 	if (pHead->indexHead == (pHead->size - 1) && pHead->indexTail == -1)

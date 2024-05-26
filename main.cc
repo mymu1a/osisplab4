@@ -15,7 +15,7 @@
 #include <cassert>
 
 
-#define SIZE_MESSAGE_QUEUE 5
+#define SIZE_MESSAGE_QUEUE 8
 
 //===== `Child` Struct =====
 struct Child
@@ -37,6 +37,8 @@ int createChild(unsigned indexChild, char* dirChild, TYPE_CHILD childType);
 void createColMessage();			// initialize circled collection for Messages
 void onExit();
 void stopChildAll(TYPE_CHILD type);
+
+
 
 int main(int argc, char* argv[], char* envp[])
 {

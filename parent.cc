@@ -34,7 +34,7 @@ int createChild(unsigned index, char* dirChild, TYPE_CHILD childType)
 
 int startChild(char* dirChild, char* nameChild, unsigned index)
 {
-	char nameProgram[9] = { 0, };
+	char nameProgram[12] = { 0, };
 	char* argv[]		= { NULL, NULL, NULL };
 	char pathChild[256] = { 0, };
 
