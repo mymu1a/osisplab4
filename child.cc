@@ -106,3 +106,15 @@ bool connectExitSignal()
 
 	return true;
 }
+
+
+sem_t* openSemaphore(const char* nameSemaphore)
+{
+	sem_t* pSemaphore;
+	pSemaphore = sem_open(nameSemaphore, O_CREAT);
+	if (pSemaphore == SEM_FAILED)
+	{
+		return NULL;
+	}
+	return pSemaphore;
+}

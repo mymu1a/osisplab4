@@ -18,7 +18,7 @@ extern bool isExit;						// whether Porducer should exit
 
 struct Message* createMessage();
 void deleteMessage(struct Message*);
-void startNanoSleep(CircleHead* pCircleHead);
+void startNanoSleep(CircleHead* pCircleHead, sem_t* pSemaphore);
 void writeMessage(unsigned indexMessage, struct Message* pMessage);
 
 
@@ -35,13 +35,20 @@ int main(int argc, char* argv[])
 	u_char*		pHeapMemory;
 	off_t		sizeMemory;
 	CircleHead* pCircleHead;
+	sem_t*		pSemaphore;
 
 	if (fd = openCircledQueue(&pHeapMemory, sizeMemory, &pCircleHead) < 0)
 	{
 		printf("Error: cannot open CircledQueue ( %s )\n", nameProgram);
 		return 1;
 	}
-	startNanoSleep(pCircleHead);
+	pSemaphore = openSemaphore(SEM_PRODUSER_NAME);
+	if (pSemaphore == NULL)
+	{
+		printf("Error: cannot open sem\n");
+		return 1;
+	}
+	startNanoSleep(pCircleHead, pSemaphore);
 	
 	closeCircledQueue(pHeapMemory, sizeMemory);
 	close(fd);
@@ -49,7 +56,7 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-void startNanoSleep(CircleHead* pCircleHead)
+void startNanoSleep(CircleHead* pCircleHead, sem_t* pSemaphore)
 {
 	struct timespec		time, time2;
 	int					count = 5;
@@ -65,8 +72,10 @@ void startNanoSleep(CircleHead* pCircleHead)
 		{
 			CircleElement* pElement;
 
-			pthread_mutex_lock(&pCircleHead->mutex);									// mutex lock
+			sem_wait(pSemaphore);
 			inProcess = true;  // prevent terminating by Exit Signal
+
+			pthread_mutex_lock(&pCircleHead->mutex);									// mutex lock
 			usleep(1000000);
 
 			if (circleQueueNextWrite(pCircleHead, &pElement) == false)
@@ -95,6 +104,8 @@ void startNanoSleep(CircleHead* pCircleHead)
 
 			inProcess = false;  // prevent terminating by Exit Signal
 			pthread_mutex_unlock(&pCircleHead->mutex);									// mutex unlock
+			
+			sem_post(pSemaphore);
 			if (isExit == true)
 			{
 				printf("isExit == true !!!!!!!!!!!!!\n");

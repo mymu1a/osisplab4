@@ -4,6 +4,7 @@
 
 #include <ctype.h>
 #include <dirent.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +39,7 @@ bool cleanDirectory(const char* path);		// remove all the files and directories 
 int createChild(unsigned indexChild, char* dirChild, TYPE_CHILD childType);
 void createColMessage();					// initialize circled collection for Messages
 void onExit();
+sem_t* openSemaphore(const char* nameSemaphore, unsigned value);
 void stopChildAll(TYPE_CHILD type);
 
 
@@ -58,6 +60,22 @@ int main(int argc, char* argv[], char* envp[])
 	if (cleanDirectory(MESSAGE_FOLDER) == false)
 	{
 		printf("Error: cannot clear `messages` folder\n");
+		return 1;
+	}
+	sem_t* pSemaphoreProducer;
+
+	pSemaphoreProducer = openSemaphore(SEM_PRODUSER_NAME, SEM_PRODUSER_VALUE);
+	if (pSemaphoreProducer == NULL)
+	{
+		printf("Error: cannot open Semaphore\n");
+		return 1;
+	}
+	sem_t* pSemaphoreConsumer;
+
+	pSemaphoreConsumer = openSemaphore(SEM_CONSUMER_NAME, SEM_CONSUMER_VALUE);
+	if (pSemaphoreConsumer == NULL)
+	{
+		printf("Error: cannot open Semaphore\n");
 		return 1;
 	}
 	printf("Type: p c k q\n");
@@ -248,4 +266,15 @@ bool cleanDirectory(const char* path)
 	closedir(dir);
 
 	return true;
+}
+
+sem_t* openSemaphore(const char* nameSemaphore, unsigned value)
+{
+	sem_t* pSemaphore;
+	pSemaphore = sem_open(nameSemaphore, O_CREAT, 0660, value);
+	if (pSemaphore == SEM_FAILED)
+	{
+		return NULL;
+	}
+	return pSemaphore;
 }

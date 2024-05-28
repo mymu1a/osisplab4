@@ -17,8 +17,9 @@ extern bool inProcess;					// Porducer works with Message
 extern bool isExit;						// whether Porducer should exit
 
 
+
 void readMessage(unsigned indexMessage, struct Message* pMessage);
-void startNanoSleep(CircleHead* pCircleHead);
+void startNanoSleep(CircleHead* pCircleHead, sem_t* pSemaphore);
 
 
 int main(int argc, char* argv[])
@@ -34,13 +35,20 @@ int main(int argc, char* argv[])
 	u_char*		pHeapMemory;
 	off_t		sizeMemory;
 	CircleHead* pCircleHead;
+	sem_t*		pSemaphore;
 
 	if (fd = openCircledQueue(&pHeapMemory, sizeMemory, &pCircleHead) < 0)
 	{
 		printf("Error: cannot open CircledQueue ( %s )\n", nameProgram);
 		return 1;
 	}
-	startNanoSleep(pCircleHead);
+	pSemaphore = openSemaphore(SEM_CONSUMER_NAME);
+	if (pSemaphore == NULL)
+	{
+		printf("Error: cannot open sem\n");
+		return 1;
+	}
+	startNanoSleep(pCircleHead, pSemaphore);
 
 	closeCircledQueue(pHeapMemory, sizeMemory);
 	close(fd);
@@ -48,7 +56,7 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-void startNanoSleep(CircleHead* pCircleHead)
+void startNanoSleep(CircleHead* pCircleHead, sem_t* pSemaphore)
 {
 	struct timespec		time, time2;
 	int					count = 5;
@@ -64,8 +72,10 @@ void startNanoSleep(CircleHead* pCircleHead)
 		{
 			CircleElement* pElement;
 
-			pthread_mutex_lock(&pCircleHead->mutex);									// mutex lock
+			sem_wait(pSemaphore);
 			inProcess = true;  // prevent terminating by Exit Signal
+
+			pthread_mutex_lock(&pCircleHead->mutex);									// mutex lock
 
 			if (circleQueueNextRead(pCircleHead, &pElement) == false)
 			{
@@ -76,7 +86,6 @@ void startNanoSleep(CircleHead* pCircleHead)
 				struct Message pMessage;
 
 				readMessage(pElement->indexMessage, &pMessage);
-				printf("  read next Element\t");
 				pCircleHead->countRead++;												// increment `счетчик извлеченных сообщений`
 				printf("  %d ( count read )\t", pCircleHead->countRead);
 
@@ -86,6 +95,8 @@ void startNanoSleep(CircleHead* pCircleHead)
 			usleep(500000);
 			inProcess = false;  // prevent terminating by Exit Signal
 			pthread_mutex_unlock(&pCircleHead->mutex);									// mutex unlock
+
+			sem_post(pSemaphore);
 			if (isExit == true)
 			{
 				printf("isExit == true !!!!!!!!!!!!!\n");
@@ -121,15 +132,12 @@ void readMessage(unsigned indexMessage, struct Message* pMessage)
 		return;
 	}
 
-
-
-
 	read(fd, (void*)&pMessage->type, 1);
 	read(fd, (void*)&pMessage->hash, 2);
 	read(fd, (void*)&pMessage->size, 1);
 
-	printf("pMessage->type = %d", pMessage->type);
-	printf("pMessage->size = %d", pMessage->size);
+	printf("pMessage->type = %d\t", pMessage->type);
+	printf("pMessage->size = %d\t", pMessage->size);
 
 	pMessage->pData = (u_char*)malloc(pMessage->size);
 	read(fd, (void*)pMessage->pData, pMessage->size);
