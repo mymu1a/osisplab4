@@ -13,6 +13,9 @@
 
 
 const char* nameProgram = NULL;
+extern bool inProcess;					// Porducer works with Message
+extern bool isExit;						// whether Porducer should exit
+
 
 void readMessage(unsigned indexMessage, struct Message* pMessage);
 void startNanoSleep(CircleHead* pCircleHead);
@@ -20,6 +23,11 @@ void startNanoSleep(CircleHead* pCircleHead);
 
 int main(int argc, char* argv[])
 {
+	if (connectExitSignal() == false)
+	{
+		printf("Error: cannot connect Exit Signal\n");
+		return 1;
+	}
 	nameProgram = argv[0];
 
 	int			fd;
@@ -57,6 +65,7 @@ void startNanoSleep(CircleHead* pCircleHead)
 			CircleElement* pElement;
 
 			pthread_mutex_lock(&pCircleHead->mutex);									// mutex lock
+			inProcess = true;  // prevent terminating by Exit Signal
 
 			if (circleQueueNextRead(pCircleHead, &pElement) == false)
 			{
@@ -75,8 +84,14 @@ void startNanoSleep(CircleHead* pCircleHead)
 			printf(" ( %s )\n", nameProgram);
 
 			usleep(500000);
+			inProcess = false;  // prevent terminating by Exit Signal
 			pthread_mutex_unlock(&pCircleHead->mutex);									// mutex unlock
-			///// end
+			if (isExit == true)
+			{
+				printf("isExit == true !!!!!!!!!!!!!\n");
+				exit(0);
+			}
+
 		}
 		if (result == -1)
 		{

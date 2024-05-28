@@ -12,8 +12,8 @@
 #include <sys/mman.h>
 #include <sys/stat.h>	/* For mode constants */
 #include <fcntl.h>		/* For O_* constants */
+#include <sys/wait.h>
 
-#include <cassert>
 
 
 #define SIZE_MESSAGE_QUEUE 8
@@ -137,10 +137,24 @@ int main(int argc, char* argv[], char* envp[])
 			printf("main OK quit\n");
 			return 0;
 		}
+		case 'z':						// kill zombie processes
+		{
+			int stat;
+
+			while (waitpid(-1, &stat, WUNTRACED) > 0)
+			{
+			}
+			break;
+		}
 		}
 	}
 	printf("main OK main");
 	onExit();							// clear resources
+	
+	// wait for children termination
+	while (wait(NULL) > 0)
+	{
+	}
 
 	return 0;
 }
@@ -153,7 +167,7 @@ void onExit()
 
 void stopChild(pid_t pidChild)
 {
-	kill(pidChild, SIGKILL);
+	kill(pidChild, SIGUSR1);
 }
 
 void stopChildAll(TYPE_CHILD type)
@@ -199,8 +213,6 @@ void createColMessage()
 
 	sizeFile = sizeof(CircleHead) + sizeof(CircleElement) * SIZE_MESSAGE_QUEUE;
 	ftruncate(fd, sizeFile);
-
-	assert(fd > 0);
 
 	u_char* pHeapMemory = (u_char*)mmap(NULL, sizeFile, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 /*

@@ -59,3 +59,50 @@ void closeCircledQueue(u_char* pHeapMemory, off_t& sizeMemory)
 {
 	munmap(pHeapMemory, sizeMemory);
 }
+
+// Porducer ( or Consumer ) works with Message
+bool inProcess = false;
+// sugest Porducer ( or Consumer ) to exit
+bool isExit = false;
+
+void signalHandler(int numberSignal)
+{
+	fprintf(stderr, "signalHandler: %d\n", numberSignal);
+
+	if(numberSignal != SIGUSR1)
+	{
+		fprintf(stderr, "Unexpected Signal number: %d\n", numberSignal);
+		return;
+	}
+	if (inProcess == false)
+	{ // application wain on the Mutex
+		printf("TERMINATE on Mutex\n");
+		exit(0);
+	}
+	isExit = true;
+}
+
+bool connectExitSignal()
+{
+	printf("connectExitSignal ST\n");
+
+	int					result;
+	struct sigaction	action;
+
+	action.sa_handler = signalHandler;
+	action.sa_flags = 0;
+
+	//=== connect to Signals ===
+
+	result = sigaction(SIGUSR1, &action, NULL);						// SIGUSR1
+	if (result == -1)
+	{
+		printf("cannot connect to Signal: SIGUSR1\n");
+
+		printf("connectExitSignal OK\n");
+		return false;
+	}
+	printf("connectExitSignal OK\n");
+
+	return true;
+}

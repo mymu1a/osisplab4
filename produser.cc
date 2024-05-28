@@ -13,15 +13,22 @@
 
 
 const char* nameProgram = NULL;
-
+extern bool inProcess;					// Porducer works with Message
+extern bool isExit;						// whether Porducer should exit
 
 struct Message* createMessage();
+void deleteMessage(struct Message*);
 void startNanoSleep(CircleHead* pCircleHead);
 void writeMessage(unsigned indexMessage, struct Message* pMessage);
 
 
 int main(int argc, char* argv[])
 {
+	if (connectExitSignal() == false)
+	{
+		printf("Error: cannot connect Exit Signal\n");
+		return 1;
+	}
 	nameProgram = argv[0];
 
 	int			fd;
@@ -29,7 +36,7 @@ int main(int argc, char* argv[])
 	off_t		sizeMemory;
 	CircleHead* pCircleHead;
 
-	if(fd = openCircledQueue(&pHeapMemory, sizeMemory, &pCircleHead) < 0)
+	if (fd = openCircledQueue(&pHeapMemory, sizeMemory, &pCircleHead) < 0)
 	{
 		printf("Error: cannot open CircledQueue ( %s )\n", nameProgram);
 		return 1;
@@ -59,6 +66,8 @@ void startNanoSleep(CircleHead* pCircleHead)
 			CircleElement* pElement;
 
 			pthread_mutex_lock(&pCircleHead->mutex);									// mutex lock
+			inProcess = true;  // prevent terminating by Exit Signal
+			usleep(1000000);
 
 			if (circleQueueNextWrite(pCircleHead, &pElement) == false)
 			{
@@ -73,6 +82,7 @@ void startNanoSleep(CircleHead* pCircleHead)
 
 				pMessage = createMessage();
 				writeMessage(pCircleHead->indexMessage, pMessage);
+				deleteMessage(pMessage);
 				
 				pCircleHead->countWrite++;												// increment `счетчик добавленных сообщений`
 				printf("  %d ( count write )\t", pCircleHead->countWrite);
@@ -83,10 +93,14 @@ void startNanoSleep(CircleHead* pCircleHead)
 			}
 			printf(" ( %s )\n", nameProgram);
 
-			usleep(1000000);
+			inProcess = false;  // prevent terminating by Exit Signal
 			pthread_mutex_unlock(&pCircleHead->mutex);									// mutex unlock
+			if (isExit == true)
+			{
+				printf("isExit == true !!!!!!!!!!!!!\n");
+				exit(0);
+			}
 			usleep(2);
-			///// end
 		}
 		if (result == -1)
 		{
@@ -137,6 +151,12 @@ struct Message* createMessage()
 	pMessage->type = 1;
 
 	return pMessage;
+}
+
+void deleteMessage(struct Message* pMessage)
+{
+	free(pMessage->pData);
+	free(pMessage);
 }
 
 void writeMessage(unsigned indexMessage, struct Message* pMessage)
